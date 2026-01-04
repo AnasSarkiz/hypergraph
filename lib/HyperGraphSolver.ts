@@ -66,7 +66,6 @@ export class HyperGraphSolver<
     )
     if (input.greedyMultiplier) this.greedyMultiplier = input.greedyMultiplier
     this.unprocessedConnections = [...this.connections]
-    this.currentConnection = this.unprocessedConnections.shift()!
     this.candidateQueue = new PriorityQueue<Candidate>()
     this.beginNewConnection()
   }
@@ -213,29 +212,38 @@ export class HyperGraphSolver<
       }
     }
 
-    // Go through each region in the path and add to the assignments
-    for (const region of solvedRoute.path.map(
-      (candidate) => candidate.lastRegion!,
-    )) {
-      region.assignments?.push({
-        regionPort1: finalCandidate.lastPort!,
-        regionPort2: finalCandidate.port,
-        region: region,
+    for (const candidate of solvedRoute.path) {
+      if (!candidate.lastPort) continue
+      candidate.port.assignment = {
+        regionPort1: candidate.lastPort,
+        regionPort2: candidate.port,
+        region: candidate.lastRegion!,
         connection: this.currentConnection!,
         solvedRoute,
-      })
+      }
+      candidate.lastRegion!.assignments?.push(candidate.port.assignment)
     }
 
     this.solvedRoutes.push(solvedRoute)
   }
 
   ripSolvedRoute(solvedRoute: SolvedRoute) {
-    for (const candidate of solvedRoute.path) {
-      candidate.port.ripCount = (candidate.port.ripCount ?? 0) + 1
-      candidate.port.region1.ports = candidate.port.region1.ports.filter(
-        (p) => p !== candidate.port,
+    const assignments: RegionPortAssignment[] = solvedRoute.path
+      .map((candidate) => candidate.port.assignment!)
+      .filter(Boolean)
+    const portsAssigned: Set<RegionPort> = new Set()
+    for (const assignment of assignments) {
+      portsAssigned.add(assignment.regionPort1)
+      portsAssigned.add(assignment.regionPort2)
+    }
+    for (const port of portsAssigned) {
+      port.ripCount = (port.ripCount ?? 0) + 1
+      port.assignment = undefined
+    }
+    for (const assignment of assignments) {
+      assignment.region.assignments = assignment.region.assignments?.filter(
+        (a) => a !== assignment,
       )
-      candidate.port.assignment = undefined
     }
     this.solvedRoutes = this.solvedRoutes.filter((r) => r !== solvedRoute)
   }
@@ -244,6 +252,7 @@ export class HyperGraphSolver<
     this.currentConnection = this.unprocessedConnections.shift()!
     this.currentEndRegion = this.currentConnection.endRegion
     this.candidateQueue = new PriorityQueue<Candidate>()
+    this.visitedPointsForCurrentConnection.clear()
     for (const port of this.currentConnection.startRegion.ports) {
       this.candidateQueue.enqueue({
         port,
@@ -252,6 +261,10 @@ export class HyperGraphSolver<
         f: 0,
         hops: 0,
         ripsRequired: 0,
+        nextRegion:
+          port.region1 === this.currentConnection.startRegion
+            ? port.region2
+            : port.region1,
       })
     }
   }
@@ -274,6 +287,10 @@ export class HyperGraphSolver<
 
     if (currentCandidate.nextRegion === this.currentEndRegion) {
       this.processSolvedRoute(currentCandidate)
+      if (this.unprocessedConnections.length === 0) {
+        this.solved = true
+        return
+      }
       this.beginNewConnection()
       return
     }
