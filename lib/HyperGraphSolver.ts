@@ -62,7 +62,11 @@ export class HyperGraphSolver<
       input.inputConnections,
       this.graph,
     )
-    if (input.greedyMultiplier) this.greedyMultiplier = input.greedyMultiplier
+    if (input.greedyMultiplier !== undefined)
+      this.greedyMultiplier = input.greedyMultiplier
+    if (input.rippingEnabled !== undefined)
+      this.rippingEnabled = input.rippingEnabled
+    if (input.ripCost !== undefined) this.ripCost = input.ripCost
     this.unprocessedConnections = [...this.connections]
     this.candidateQueue = new PriorityQueue<Candidate>()
     this.beginNewConnection()
@@ -153,7 +157,7 @@ export class HyperGraphSolver<
         ripRequired,
       }
 
-      if (!this.rippingEnabled && newCandidate.ripRequired! > 0) {
+      if (!this.rippingEnabled && newCandidate.ripRequired) {
         continue
       }
 
