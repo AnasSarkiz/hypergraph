@@ -6,11 +6,15 @@ export const generateJumperGrid = ({
   rows,
   marginX,
   marginY,
+  xChannelPointCount = 1,
+  yChannelPointCount = 1,
 }: {
   cols: number
   rows: number
   marginX: number
   marginY: number
+  xChannelPointCount?: number
+  yChannelPointCount?: number
 }) => {
   const regions: JRegion[] = []
   const ports: JPort[] = []
@@ -83,6 +87,76 @@ export const generateJumperGrid = ({
     region1.ports.push(port)
     region2.ports.push(port)
     return port
+  }
+
+  // Helper to create multiple ports distributed along a boundary between two regions
+  const createMultiplePorts = (
+    idPrefix: string,
+    region1: JRegion,
+    region2: JRegion,
+    count: number,
+  ): JPort[] => {
+    if (count <= 0) return []
+    if (count === 1) {
+      return [createPort(idPrefix, region1, region2)]
+    }
+
+    const b1 = region1.d.bounds
+    const b2 = region2.d.bounds
+    const result: JPort[] = []
+
+    // Determine boundary orientation and shared extent
+    let isVerticalBoundary: boolean
+    let boundaryCoord: number
+    let sharedMin: number
+    let sharedMax: number
+
+    if (Math.abs(b1.maxX - b2.minX) < 0.001) {
+      // region1 is left of region2 (vertical boundary)
+      isVerticalBoundary = true
+      boundaryCoord = b1.maxX
+      sharedMin = Math.max(b1.minY, b2.minY)
+      sharedMax = Math.min(b1.maxY, b2.maxY)
+    } else if (Math.abs(b1.minX - b2.maxX) < 0.001) {
+      // region1 is right of region2 (vertical boundary)
+      isVerticalBoundary = true
+      boundaryCoord = b1.minX
+      sharedMin = Math.max(b1.minY, b2.minY)
+      sharedMax = Math.min(b1.maxY, b2.maxY)
+    } else if (Math.abs(b1.maxY - b2.minY) < 0.001) {
+      // region1 is below region2 (horizontal boundary)
+      isVerticalBoundary = false
+      boundaryCoord = b1.maxY
+      sharedMin = Math.max(b1.minX, b2.minX)
+      sharedMax = Math.min(b1.maxX, b2.maxX)
+    } else {
+      // region1 is above region2 (horizontal boundary)
+      isVerticalBoundary = false
+      boundaryCoord = b1.minY
+      sharedMin = Math.max(b1.minX, b2.minX)
+      sharedMax = Math.min(b1.maxX, b2.maxX)
+    }
+
+    // Create evenly distributed ports
+    for (let i = 0; i < count; i++) {
+      const t = (i + 0.5) / count // distribute evenly with half-spacing from edges
+      const coord = sharedMin + t * (sharedMax - sharedMin)
+
+      const x = isVerticalBoundary ? boundaryCoord : coord
+      const y = isVerticalBoundary ? coord : boundaryCoord
+
+      const port: JPort = {
+        portId: `${idPrefix}:${i}`,
+        region1,
+        region2,
+        d: { x, y },
+      }
+      region1.ports.push(port)
+      region2.ports.push(port)
+      result.push(port)
+    }
+
+    return result
   }
 
   // Generate cells
@@ -243,9 +317,13 @@ export const generateJumperGrid = ({
       // Top frame connections (if top exists)
       if (top) {
         if (left) {
-          ports.push(createPort(`${idPrefix}:T-L`, top, left))
+          ports.push(
+            ...createMultiplePorts(`${idPrefix}:T-L`, top, left, xChannelPointCount),
+          )
         }
-        ports.push(createPort(`${idPrefix}:T-R`, top, right))
+        ports.push(
+          ...createMultiplePorts(`${idPrefix}:T-R`, top, right, xChannelPointCount),
+        )
         ports.push(createPort(`${idPrefix}:T-LP`, top, leftPad))
         ports.push(createPort(`${idPrefix}:T-RP`, top, rightPad))
         ports.push(createPort(`${idPrefix}:T-UJ`, top, underjumper))
@@ -254,9 +332,13 @@ export const generateJumperGrid = ({
       // Bottom frame connections
       if (bottom) {
         if (left) {
-          ports.push(createPort(`${idPrefix}:B-L`, bottom, left))
+          ports.push(
+            ...createMultiplePorts(`${idPrefix}:B-L`, bottom, left, xChannelPointCount),
+          )
         }
-        ports.push(createPort(`${idPrefix}:B-R`, bottom, right))
+        ports.push(
+          ...createMultiplePorts(`${idPrefix}:B-R`, bottom, right, xChannelPointCount),
+        )
         ports.push(createPort(`${idPrefix}:B-LP`, bottom, leftPad))
         ports.push(createPort(`${idPrefix}:B-RP`, bottom, rightPad))
         ports.push(createPort(`${idPrefix}:B-UJ`, bottom, underjumper))
@@ -303,20 +385,22 @@ export const generateJumperGrid = ({
         // T-T connection between horizontally adjacent cells (first row only)
         if (top && prevCell.top) {
           ports.push(
-            createPort(
+            ...createMultiplePorts(
               `cell_${row}_${col - 1}->cell_${row}_${col}:T-T`,
               prevCell.top,
               top,
+              yChannelPointCount,
             ),
           )
         }
         // B-B connection between horizontally adjacent cells
         if (bottom && prevCell.bottom) {
           ports.push(
-            createPort(
+            ...createMultiplePorts(
               `cell_${row}_${col - 1}->cell_${row}_${col}:B-B`,
               prevCell.bottom,
               bottom,
+              yChannelPointCount,
             ),
           )
         }
@@ -328,10 +412,11 @@ export const generateJumperGrid = ({
         // A.bottom connects to B.left, B.leftPad, B.underjumper, B.rightPad, B.right
         if (left) {
           ports.push(
-            createPort(
+            ...createMultiplePorts(
               `cell_${row - 1}_${col}->cell_${row}_${col}:B-L`,
               aboveCell.bottom!,
               left,
+              xChannelPointCount,
             ),
           )
         }
@@ -357,10 +442,11 @@ export const generateJumperGrid = ({
           ),
         )
         ports.push(
-          createPort(
+          ...createMultiplePorts(
             `cell_${row - 1}_${col}->cell_${row}_${col}:B-R`,
             aboveCell.bottom!,
             right,
+            xChannelPointCount,
           ),
         )
       }
