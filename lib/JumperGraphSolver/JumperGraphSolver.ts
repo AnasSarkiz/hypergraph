@@ -21,10 +21,10 @@ export class JumperGraphSolver extends HyperGraphSolver<JRegion, JPort> {
     super({ ...input, greedyMultiplier: 1.2, rippingEnabled: true, ripCost: 1 })
   }
 
-  override estimateCostToEnd(port: RegionPort): number {
+  override estimateCostToEnd(port: JPort): number {
     return 0
   }
-  override getPortUsagePenalty(port: RegionPort): number {
+  override getPortUsagePenalty(port: JPort): number {
     return 0
   }
   override computeIncreasedRegionCostIfPortsAreUsed(

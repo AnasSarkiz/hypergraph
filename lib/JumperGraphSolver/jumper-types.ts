@@ -4,6 +4,7 @@ import type { Bounds } from "./Bounds"
 export interface JRegion extends Region {
   d: {
     bounds: Bounds
+    center: { x: number; y: number }
     isPad: boolean
     isThroughJumper?: boolean
     isConnectionRegion?: boolean
