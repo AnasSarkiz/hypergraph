@@ -10,6 +10,8 @@ test("jumper-graph-generation09 - 1206x4 grid with regionsBetweenPads", () => {
     marginX: 1,
     marginY: 1,
     regionsBetweenPads: true,
+    outerPaddingX: 2,
+    outerPaddingY: 2,
   })
   expect(
     getSvgFromGraphicsObject(visualizeJumperGraph(jumperX4Grid)),
