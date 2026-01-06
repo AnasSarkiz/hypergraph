@@ -5,7 +5,7 @@ import { generateJumperGrid } from "lib/JumperGraphSolver/jumper-graph-generator
 
 const SAMPLES_PER_CROSSING_COUNT = 100
 const MIN_CROSSINGS = 2
-const MAX_CROSSINGS = 20
+const MAX_CROSSINGS = 12
 
 const median = (numbers: number[]): number | undefined => {
   if (numbers.length === 0) return undefined
@@ -23,8 +23,8 @@ const percentile = (numbers: number[], p: number): number | undefined => {
 
 const createBaseGraph = () =>
   generateJumperGrid({
-    cols: 3,
-    rows: 3,
+    cols: 4,
+    rows: 4,
     marginX: 1.2,
     marginY: 1.2,
     outerPaddingX: 2,
