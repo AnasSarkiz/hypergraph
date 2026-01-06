@@ -9,6 +9,10 @@ export const generateJumperX2Grid = ({
   marginY,
   xChannelPointCount = 1,
   yChannelPointCount = 1,
+  outerPaddingX = 0.5,
+  outerPaddingY = 0.5,
+  outerChannelXPoints,
+  outerChannelYPoints,
 }: {
   cols: number
   rows: number
@@ -16,7 +20,17 @@ export const generateJumperX2Grid = ({
   marginY: number
   xChannelPointCount?: number
   yChannelPointCount?: number
+  outerPaddingX?: number
+  outerPaddingY?: number
+  outerChannelXPoints?: number
+  outerChannelYPoints?: number
 }) => {
+  // Calculate outer channel points: use provided value or derive from outer padding
+  const effectiveOuterChannelXPoints =
+    outerChannelXPoints ?? Math.max(1, Math.floor(outerPaddingX / 0.4))
+  const effectiveOuterChannelYPoints =
+    outerChannelYPoints ?? Math.max(1, Math.floor(outerPaddingY / 0.4))
+
   const regions: JRegion[] = []
   const ports: JPort[] = []
 
@@ -31,7 +45,6 @@ export const generateJumperX2Grid = ({
 
   const padHalfWidth = padWidth / 2
   const padHalfHeight = padHeight / 2
-  const surroundSize = 0.5
 
   // Calculate center-to-center distances for the grid
   // Horizontal spacing: from one cell center to next cell center
@@ -268,10 +281,10 @@ export const generateJumperX2Grid = ({
       const isLastRow = row === rows - 1
       const isLastCol = col === cols - 1
 
-      // Calculate right edge: extends to next cell's pad1.minX, or surroundSize if last column
+      // Calculate right edge: extends to next cell's pad1.minX, or outerPaddingX if last column
       let frameRightEdge: number
       if (isLastCol) {
-        frameRightEdge = mainMaxX + surroundSize
+        frameRightEdge = mainMaxX + outerPaddingX
       } else {
         // Next cell's leftmost pad minX
         const nextCenterX = (col + 1) * horizontalSpacing
@@ -285,23 +298,23 @@ export const generateJumperX2Grid = ({
         top = createRegion(
           `${idPrefix}:T`,
           {
-            minX: isFirstCol ? mainMinX - surroundSize : mainMinX,
+            minX: isFirstCol ? mainMinX - outerPaddingX : mainMinX,
             maxX: frameRightEdge,
             minY: mainMaxY,
-            maxY: mainMaxY + surroundSize,
+            maxY: mainMaxY + outerPaddingY,
           },
           false,
         )
         regions.push(top)
       }
 
-      // Bottom region: height is marginY (or surroundSize for last row)
+      // Bottom region: height is marginY (or outerPaddingY for last row)
       let bottom: JRegion | null = null
-      const bottomHeight = isLastRow ? surroundSize : marginY
+      const bottomHeight = isLastRow ? outerPaddingY : marginY
       bottom = createRegion(
         `${idPrefix}:B`,
         {
-          minX: isFirstCol ? mainMinX - surroundSize : mainMinX,
+          minX: isFirstCol ? mainMinX - outerPaddingX : mainMinX,
           maxX: frameRightEdge,
           minY: mainMinY - bottomHeight,
           maxY: mainMinY,
@@ -316,7 +329,7 @@ export const generateJumperX2Grid = ({
         left = createRegion(
           `${idPrefix}:L`,
           {
-            minX: mainMinX - surroundSize,
+            minX: mainMinX - outerPaddingX,
             maxX: mainMinX,
             minY: mainMinY,
             maxY: mainMaxY,
@@ -359,11 +372,21 @@ export const generateJumperX2Grid = ({
       if (top) {
         if (left) {
           ports.push(
-            ...createMultiplePorts(`${idPrefix}:T-L`, top, left, xChannelPointCount),
+            ...createMultiplePorts(
+              `${idPrefix}:T-L`,
+              top,
+              left,
+              effectiveOuterChannelXPoints,
+            ),
           )
         }
         ports.push(
-          ...createMultiplePorts(`${idPrefix}:T-R`, top, right, xChannelPointCount),
+          ...createMultiplePorts(
+            `${idPrefix}:T-R`,
+            top,
+            right,
+            effectiveOuterChannelXPoints,
+          ),
         )
         // Top connects to pad1, pad3, and underjumper
         ports.push(createPort(`${idPrefix}:T-P1`, top, pad1))
@@ -375,11 +398,21 @@ export const generateJumperX2Grid = ({
       if (bottom) {
         if (left) {
           ports.push(
-            ...createMultiplePorts(`${idPrefix}:B-L`, bottom, left, xChannelPointCount),
+            ...createMultiplePorts(
+              `${idPrefix}:B-L`,
+              bottom,
+              left,
+              effectiveOuterChannelXPoints,
+            ),
           )
         }
         ports.push(
-          ...createMultiplePorts(`${idPrefix}:B-R`, bottom, right, xChannelPointCount),
+          ...createMultiplePorts(
+            `${idPrefix}:B-R`,
+            bottom,
+            right,
+            effectiveOuterChannelXPoints,
+          ),
         )
         // Bottom connects to pad2, pad4, and underjumper
         ports.push(createPort(`${idPrefix}:B-P2`, bottom, pad2))
@@ -489,7 +522,7 @@ export const generateJumperX2Grid = ({
               `cell_${row - 1}_${col}->cell_${row}_${col}:B-L`,
               aboveCell.bottom!,
               left,
-              xChannelPointCount,
+              effectiveOuterChannelXPoints,
             ),
           )
         }
@@ -533,7 +566,7 @@ export const generateJumperX2Grid = ({
             `cell_${row - 1}_${col}->cell_${row}_${col}:B-R`,
             aboveCell.bottom!,
             right,
-            xChannelPointCount,
+            effectiveOuterChannelXPoints,
           ),
         )
       }

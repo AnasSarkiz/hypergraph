@@ -12,6 +12,8 @@ export const generateJumperX4Grid = ({
   regionsBetweenPads = false,
   outerPaddingX = 0.5,
   outerPaddingY = 0.5,
+  outerChannelXPoints,
+  outerChannelYPoints,
 }: {
   cols: number
   rows: number
@@ -22,7 +24,14 @@ export const generateJumperX4Grid = ({
   regionsBetweenPads?: boolean
   outerPaddingX?: number
   outerPaddingY?: number
+  outerChannelXPoints?: number
+  outerChannelYPoints?: number
 }) => {
+  // Calculate outer channel points: use provided value or derive from outer padding
+  const effectiveOuterChannelXPoints =
+    outerChannelXPoints ?? Math.max(1, Math.floor(outerPaddingX / 0.4))
+  const effectiveOuterChannelYPoints =
+    outerChannelYPoints ?? Math.max(1, Math.floor(outerPaddingY / 0.4))
   const regions: JRegion[] = []
   const ports: JPort[] = []
 
@@ -533,11 +542,21 @@ export const generateJumperX4Grid = ({
       if (top) {
         if (left) {
           ports.push(
-            ...createMultiplePorts(`${idPrefix}:T-L`, top, left, xChannelPointCount),
+            ...createMultiplePorts(
+              `${idPrefix}:T-L`,
+              top,
+              left,
+              effectiveOuterChannelXPoints,
+            ),
           )
         }
         ports.push(
-          ...createMultiplePorts(`${idPrefix}:T-R`, top, right, xChannelPointCount),
+          ...createMultiplePorts(
+            `${idPrefix}:T-R`,
+            top,
+            right,
+            effectiveOuterChannelXPoints,
+          ),
         )
         // Top connects to pad1, pad8, and underjumper
         ports.push(createPort(`${idPrefix}:T-P1`, top, pad1))
@@ -570,11 +589,21 @@ export const generateJumperX4Grid = ({
       if (bottom) {
         if (left) {
           ports.push(
-            ...createMultiplePorts(`${idPrefix}:B-L`, bottom, left, xChannelPointCount),
+            ...createMultiplePorts(
+              `${idPrefix}:B-L`,
+              bottom,
+              left,
+              effectiveOuterChannelXPoints,
+            ),
           )
         }
         ports.push(
-          ...createMultiplePorts(`${idPrefix}:B-R`, bottom, right, xChannelPointCount),
+          ...createMultiplePorts(
+            `${idPrefix}:B-R`,
+            bottom,
+            right,
+            effectiveOuterChannelXPoints,
+          ),
         )
         // Bottom connects to pad4, pad5, and underjumper
         ports.push(createPort(`${idPrefix}:B-P4`, bottom, pad4))
@@ -811,7 +840,7 @@ export const generateJumperX4Grid = ({
               `cell_${row - 1}_${col}->cell_${row}_${col}:B-L`,
               aboveCell.bottom!,
               left,
-              xChannelPointCount,
+              effectiveOuterChannelXPoints,
             ),
           )
         }
@@ -861,7 +890,7 @@ export const generateJumperX4Grid = ({
             `cell_${row - 1}_${col}->cell_${row}_${col}:B-R`,
             aboveCell.bottom!,
             right,
-            xChannelPointCount,
+            effectiveOuterChannelXPoints,
           ),
         )
       }

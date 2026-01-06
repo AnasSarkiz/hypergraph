@@ -15,8 +15,8 @@ export default () => {
     rows,
     marginX: 0.5,
     marginY: 0.5,
-    outerPaddingX: 0.8,
-    outerPaddingY: 0.8,
+    outerPaddingX: 2,
+    outerPaddingY: 2,
     regionsBetweenPads: true,
   })
 
