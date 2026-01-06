@@ -56,7 +56,7 @@ const getConnectionId = (index: number): string => {
 
 export type CreateProblemFromBaseGraphParams = {
   baseGraph: JumperGraph
-  numConnections: number
+  numCrossings: number
   randomSeed: number
 }
 
@@ -66,7 +66,7 @@ export type CreateProblemFromBaseGraphParams = {
  */
 export const createProblemFromBaseGraph = ({
   baseGraph,
-  numConnections,
+  numCrossings, // previously numConnections
   randomSeed,
 }: CreateProblemFromBaseGraphParams): JumperGraphWithConnections => {
   const random = createSeededRandom(randomSeed)
@@ -74,7 +74,7 @@ export const createProblemFromBaseGraph = ({
 
   const xyConnections: XYConnection[] = []
 
-  for (let i = 0; i < numConnections; i++) {
+  for (let i = 0; i < numCrossings; i++) {
     const start = getRandomPerimeterPoint(graphBounds, random)
     const end = getRandomPerimeterPoint(graphBounds, random)
 

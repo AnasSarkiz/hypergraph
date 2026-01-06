@@ -323,6 +323,11 @@ export class HyperGraphSolver<
 
   override _step() {
     let currentCandidate = this.candidateQueue.dequeue() as CandidateType
+    if (!currentCandidate) {
+      this.failed = true
+      this.error = "Ran out of candidates"
+      return
+    }
     let visitedPointGScore: GScore | undefined =
       this.visitedPointsForCurrentConnection.get(currentCandidate.port.portId)
     while (true) {
@@ -332,6 +337,7 @@ export class HyperGraphSolver<
       // If this candidate has a better g score than the visited point, let's move to processing it
       if (currentCandidate.g < visitedPointGScore) break
       currentCandidate = this.candidateQueue.dequeue() as CandidateType
+      if (!currentCandidate) break
       visitedPointGScore = this.visitedPointsForCurrentConnection.get(
         currentCandidate.port.portId,
       )
