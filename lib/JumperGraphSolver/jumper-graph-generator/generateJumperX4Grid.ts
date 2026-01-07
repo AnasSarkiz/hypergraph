@@ -69,8 +69,16 @@ export const generateJumperX4Grid = ({
     // Content dimensions (without outer padding)
     const contentWidth = cols * cellWidth + (cols - 1) * marginX
     const contentHeight = rows * cellHeight + (rows - 1) * marginY
-    const boundsWidth = bounds.maxX - bounds.minX
-    const boundsHeight = bounds.maxY - bounds.minY
+    // For horizontal orientation, swap bounds dimensions since the graph
+    // will be rotated 90° after generation
+    const boundsWidth =
+      orientation === "horizontal"
+        ? bounds.maxY - bounds.minY
+        : bounds.maxX - bounds.minX
+    const boundsHeight =
+      orientation === "horizontal"
+        ? bounds.maxX - bounds.minX
+        : bounds.maxY - bounds.minY
     outerPaddingX = (boundsWidth - contentWidth) / 2
     outerPaddingY = (boundsHeight - contentHeight) / 2
   }
@@ -108,6 +116,10 @@ export const generateJumperX4Grid = ({
     rightBP76: JRegion | null
     rightBP65: JRegion | null
   }[][] = []
+
+  // Store jumper locations for each cell
+  const collectedJumperLocations: NonNullable<JumperGraph["jumperLocations"]> =
+    []
 
   // Helper to create a region
   const createRegion = (
@@ -374,6 +386,16 @@ export const generateJumperX4Grid = ({
         throughjumper3,
         throughjumper4,
       )
+
+      // Add jumper location for this cell (1 X4 jumper component per cell with 8 pads)
+      // Center is the midpoint of all 8 pads
+      const jumperCenterX = (p1CenterX + p8CenterX) / 2
+      const jumperCenterY = (p1CenterY + p4CenterY) / 2
+      collectedJumperLocations.push({
+        center: { x: jumperCenterX, y: jumperCenterY },
+        orientation: "vertical",
+        padRegions: [pad1, pad2, pad3, pad4, pad5, pad6, pad7, pad8],
+      })
 
       // Between-pad regions (created when regionsBetweenPads is true)
       // Left side: between P1-P2, P2-P3, P3-P4
@@ -934,7 +956,11 @@ export const generateJumperX4Grid = ({
     }
   }
 
-  let graph: JumperGraph = { regions, ports }
+  let graph: JumperGraph = {
+    regions,
+    ports,
+    jumperLocations: collectedJumperLocations,
+  }
 
   // Apply transformations based on orientation, center, and bounds
   const needsRotation = orientation === "horizontal"
@@ -947,17 +973,10 @@ export const generateJumperX4Grid = ({
     const currentCenter = computeBoundsCenter(currentBounds)
 
     // Build transformation matrix
+    // Note: compose() applies transformations right-to-left, so we push in reverse order
     const matrices = []
 
-    // First translate to origin (current center -> origin)
-    matrices.push(translate(-currentCenter.x, -currentCenter.y))
-
-    // Apply 90-degree clockwise rotation if horizontal
-    if (needsRotation) {
-      matrices.push(rotate(-Math.PI / 2))
-    }
-
-    // Translate to target center
+    // Last: translate to target center
     // Priority: explicit center > bounds center > current center
     let targetCenter: { x: number; y: number }
     if (center) {
@@ -968,6 +987,14 @@ export const generateJumperX4Grid = ({
       targetCenter = currentCenter
     }
     matrices.push(translate(targetCenter.x, targetCenter.y))
+
+    // Second: apply 90-degree clockwise rotation if horizontal
+    if (needsRotation) {
+      matrices.push(rotate(-Math.PI / 2))
+    }
+
+    // First: translate to origin (current center -> origin)
+    matrices.push(translate(-currentCenter.x, -currentCenter.y))
 
     const matrix = compose(...matrices)
     graph = applyTransformToGraph(graph, matrix)
