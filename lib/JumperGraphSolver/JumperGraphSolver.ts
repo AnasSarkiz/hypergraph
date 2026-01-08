@@ -14,16 +14,25 @@ import { distance } from "@tscircuit/math-utils"
 import { computeDifferentNetCrossings } from "./computeDifferentNetCrossings"
 import { computeCrossingAssignments } from "./computeCrossingAssignments"
 
+export const JUMPER_GRAPH_SOLVER_DEFAULTS = {
+  portUsagePenalty: 0.06393718451067248,
+  portUsagePenaltySq: 0.06194817180037216,
+  crossingPenalty: 6.0761550028071145,
+  crossingPenaltySq: 0.1315528159128946,
+  ripCost: 40.00702225250195,
+  greedyMultiplier: 0.4316469416682083,
+}
+
 export class JumperGraphSolver extends HyperGraphSolver<JRegion, JPort> {
   UNIT_OF_COST = "distance"
 
-  portUsagePenalty = 0.197
-  portUsagePenaltySq = 0
-  crossingPenalty = 6.007
-  crossingPenaltySq = 0.111
-  override ripCost = 40
+  portUsagePenalty = JUMPER_GRAPH_SOLVER_DEFAULTS.portUsagePenalty
+  portUsagePenaltySq = JUMPER_GRAPH_SOLVER_DEFAULTS.portUsagePenaltySq
+  crossingPenalty = JUMPER_GRAPH_SOLVER_DEFAULTS.crossingPenalty
+  crossingPenaltySq = JUMPER_GRAPH_SOLVER_DEFAULTS.crossingPenaltySq
+  override ripCost = JUMPER_GRAPH_SOLVER_DEFAULTS.ripCost
   baseMaxIterations = 4000
-  additionalMaxIterationsPerConnection = 2000
+  additionalMaxIterationsPerConnection = 4000
 
   constructor(input: {
     inputGraph: HyperGraph | SerializedHyperGraph
@@ -35,7 +44,7 @@ export class JumperGraphSolver extends HyperGraphSolver<JRegion, JPort> {
     additionalMaxIterationsPerConnection?: number
   }) {
     super({
-      greedyMultiplier: 0.45,
+      greedyMultiplier: JUMPER_GRAPH_SOLVER_DEFAULTS.greedyMultiplier,
       rippingEnabled: true,
       ...input,
     })
@@ -50,10 +59,52 @@ export class JumperGraphSolver extends HyperGraphSolver<JRegion, JPort> {
     this.MAX_ITERATIONS =
       this.baseMaxIterations +
       input.inputConnections.length * this.additionalMaxIterationsPerConnection
+
+    this.populateDistanceToEndMaps()
+  }
+
+  private populateDistanceToEndMaps() {
+    // Get all unique end regions from connections
+    const endRegions = new Set(this.connections.map((c) => c.endRegion))
+
+    // For each end region, compute hop distances from all ports using BFS
+    for (const endRegion of endRegions) {
+      const regionDistanceMap = new Map<string, number>()
+      const queue: Array<{ region: JRegion; distance: number }> = []
+
+      regionDistanceMap.set(endRegion.regionId, 0)
+      queue.push({ region: endRegion as JRegion, distance: 0 })
+
+      while (queue.length > 0) {
+        const { region, distance: dist } = queue.shift()!
+
+        for (const port of region.ports) {
+          const otherRegion = (
+            port.region1 === region ? port.region2 : port.region1
+          ) as JRegion
+          if (!regionDistanceMap.has(otherRegion.regionId)) {
+            regionDistanceMap.set(otherRegion.regionId, dist + 1)
+            queue.push({ region: otherRegion, distance: dist + 1 })
+          }
+        }
+      }
+
+      // Populate each port's distanceToEndMap for this end region
+      for (const port of this.graph.ports) {
+        if (!port.distanceToEndMap) {
+          port.distanceToEndMap = {}
+        }
+        const d1 = regionDistanceMap.get(port.region1.regionId) ?? Infinity
+        const d2 = regionDistanceMap.get(port.region2.regionId) ?? Infinity
+        port.distanceToEndMap[endRegion.regionId] = Math.min(d1, d2)
+      }
+    }
   }
 
   override estimateCostToEnd(port: JPort): number {
-    return distance(port.d, this.currentEndRegion!.d.center)
+    const endRegionId = this.currentEndRegion!.regionId
+    const hopDistance = port.distanceToEndMap![endRegionId]!
+    return hopDistance
   }
   override getPortUsagePenalty(port: JPort): number {
     const ripCount = port.ripCount ?? 0
@@ -83,6 +134,8 @@ export class JumperGraphSolver extends HyperGraphSolver<JRegion, JPort> {
   }
 
   override routeSolvedHook(solvedRoute: SolvedRoute) {}
+
+  override routeStartedHook(connection: Connection) {}
 
   override visualize(): GraphicsObject {
     return visualizeJumperGraphSolver(this)
