@@ -5,6 +5,7 @@ export interface JRegion extends Region {
   d: {
     bounds: Bounds
     center: { x: number; y: number }
+    polygon?: { x: number; y: number }[]
     isPad: boolean
     isThroughJumper?: boolean
     isConnectionRegion?: boolean
