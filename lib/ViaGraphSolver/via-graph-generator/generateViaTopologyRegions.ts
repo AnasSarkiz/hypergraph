@@ -128,6 +128,7 @@ export const generateViaTopologyRegions = (
   const createRegion = (
     id: string,
     polygon: { x: number; y: number }[],
+    opts?: { isViaRegion?: boolean },
   ): JRegion => {
     const bounds = boundsFromPolygon(polygon)
     return {
@@ -141,6 +142,7 @@ export const generateViaTopologyRegions = (
         },
         polygon,
         isPad: false,
+        isViaRegion: opts?.isViaRegion,
       },
     }
   }
@@ -420,7 +422,7 @@ export const generateViaTopologyRegions = (
       { x: netLeftSeg.x, y: netLeftSeg.yEnd },
     ]
 
-    const netRegion = createRegion(netName, netPolygon)
+    const netRegion = createRegion(netName, netPolygon, { isViaRegion: true })
     regions.push(netRegion)
 
     // ── Ports connecting this net region to the 4 outer regions ────────

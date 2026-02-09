@@ -140,6 +140,25 @@ export class ViaGraphSolver extends HyperGraphSolver<JRegion, JPort> {
     port1: JPort,
     port2: JPort,
   ): number {
+    // Via regions are exclusive: any existing different-connection assignment
+    // incurs the full crossing penalty (even if chords don't geometrically
+    // cross). Two different connections cannot share a via region.
+    if (region.d.isViaRegion) {
+      const assignments = region.assignments ?? []
+      const differentNetCount = assignments.filter(
+        (a) =>
+          a.connection.mutuallyConnectedNetworkId !==
+          this.currentConnection!.mutuallyConnectedNetworkId,
+      ).length
+      if (differentNetCount > 0) {
+        return (
+          differentNetCount * this.crossingPenalty +
+          differentNetCount * this.crossingPenaltySq
+        )
+      }
+      return 0
+    }
+
     const crossings = computeDifferentNetCrossingsForPolygon(
       region,
       port1,
@@ -153,6 +172,17 @@ export class ViaGraphSolver extends HyperGraphSolver<JRegion, JPort> {
     port1: JPort,
     port2: JPort,
   ): RegionPortAssignment[] {
+    // Via regions are exclusive: ALL existing different-connection assignments
+    // must be ripped, not just geometrically crossing ones.
+    if (region.d.isViaRegion) {
+      const assignments = region.assignments ?? []
+      return assignments.filter(
+        (a) =>
+          a.connection.mutuallyConnectedNetworkId !==
+          this.currentConnection!.mutuallyConnectedNetworkId,
+      )
+    }
+
     const crossingAssignments = computeCrossingAssignmentsForPolygon(
       region,
       port1,
