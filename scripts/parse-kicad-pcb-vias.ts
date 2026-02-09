@@ -85,7 +85,7 @@ function parseVia(
       diameter: Number(sizeMatch[1]),
       position: {
         x: Number(atMatch[1]),
-        y: Number(atMatch[2]),
+        y: -Number(atMatch[2]),
       },
     },
   }
