@@ -185,5 +185,24 @@ export const visualizeViaGraphSolver = (
     }
   }
 
+  // Draw via circles for context
+  if (solver.viasByNet) {
+    if (!graphics.circles) graphics.circles = []
+    for (const [netName, vias] of Object.entries(solver.viasByNet)) {
+      const netColor = netColorMap.get(netName)
+      const viaFill = netColor
+        ? netColor.replace("0.35", "0.5")
+        : "rgba(255, 0, 0, 0.3)"
+      for (const via of vias) {
+        graphics.circles.push({
+          center: via.position,
+          radius: via.diameter / 2,
+          fill: viaFill,
+          label: netName,
+        })
+      }
+    }
+  }
+
   return graphics
 }

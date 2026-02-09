@@ -25,12 +25,22 @@ export const VIA_GRAPH_SOLVER_DEFAULTS = {
   greedyMultiplier: 0.5518001238069296,
 }
 
+export type ViaData = {
+  viaId: string
+  diameter: number
+  position: { x: number; y: number }
+}
+
+export type ViasByNet = Record<string, ViaData[]>
+
 export class ViaGraphSolver extends HyperGraphSolver<JRegion, JPort> {
   override getSolverName(): string {
     return "ViaGraphSolver"
   }
 
   UNIT_OF_COST = "hops"
+
+  viasByNet?: ViasByNet
 
   portUsagePenalty = VIA_GRAPH_SOLVER_DEFAULTS.portUsagePenalty
   portUsagePenaltySq = VIA_GRAPH_SOLVER_DEFAULTS.portUsagePenaltySq
@@ -44,6 +54,7 @@ export class ViaGraphSolver extends HyperGraphSolver<JRegion, JPort> {
   constructor(input: {
     inputGraph: HyperGraph | SerializedHyperGraph
     inputConnections: (Connection | SerializedConnection)[]
+    viasByNet?: ViasByNet
     ripCost?: number
     portUsagePenalty?: number
     crossingPenalty?: number
@@ -55,6 +66,7 @@ export class ViaGraphSolver extends HyperGraphSolver<JRegion, JPort> {
       rippingEnabled: true,
       ...input,
     })
+    this.viasByNet = input.viasByNet
     this.ripCost = input.ripCost ?? this.ripCost
     this.portUsagePenalty = input.portUsagePenalty ?? this.portUsagePenalty
     this.crossingPenalty = input.crossingPenalty ?? this.crossingPenalty

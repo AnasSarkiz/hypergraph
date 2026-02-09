@@ -39,6 +39,7 @@ test(
         ports: graphWithConnections.ports,
       },
       inputConnections: graphWithConnections.connections,
+      viasByNet,
     })
 
     solver.solve()

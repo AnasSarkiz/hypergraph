@@ -36,6 +36,7 @@ export default () => (
           ports: graphWithConnections.ports,
         },
         inputConnections: graphWithConnections.connections,
+        viasByNet,
       })
     }
   />
