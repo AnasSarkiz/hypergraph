@@ -47,7 +47,7 @@ export class ViaGraphSolver extends HyperGraphSolver<JRegion, JPort> {
   crossingPenalty = VIA_GRAPH_SOLVER_DEFAULTS.crossingPenalty
   crossingPenaltySq = VIA_GRAPH_SOLVER_DEFAULTS.crossingPenaltySq
   override ripCost = VIA_GRAPH_SOLVER_DEFAULTS.ripCost
-  baseMaxIterations = 4000
+  baseMaxIterations = 900000
   additionalMaxIterationsPerConnection = 2000
   additionalMaxIterationsPerCrossing = 2000
 
