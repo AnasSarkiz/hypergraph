@@ -3,7 +3,7 @@ import { getSvgFromGraphicsObject } from "graphics-debug"
 import { ViaGraphSolver } from "lib/ViaGraphSolver/ViaGraphSolver"
 import { createViaGraphWithConnections } from "lib/ViaGraphSolver/via-graph-generator/createViaGraphWithConnections"
 import { generateViaTopologyRegions } from "lib/ViaGraphSolver/via-graph-generator/generateViaTopologyRegions"
-import viasByNet from "../../vias-by-net.json"
+import viasByNet from "assets/ViaGraphSolver/vias-by-net.json"
 
 test("via-graph-solver03: 2 parallel left-to-right connections (via exclusivity test)", () => {
   const baseGraph = generateViaTopologyRegions(viasByNet, {

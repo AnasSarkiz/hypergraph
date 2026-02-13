@@ -10,7 +10,7 @@ import type { Connection } from "lib/types"
 import { ViaGraphSolver } from "lib/ViaGraphSolver/ViaGraphSolver"
 import { findBoundaryRegionForPolygons } from "lib/ViaGraphSolver/via-graph-generator/findBoundaryRegionForPolygons"
 import { generateViaTopologyRegions } from "lib/ViaGraphSolver/via-graph-generator/generateViaTopologyRegions"
-import viasByNet from "../../vias-by-net.json"
+import viasByNet from "assets/ViaGraphSolver/vias-by-net.json"
 
 // ── Configuration ──────────────────────────────────────────────────────
 const TILE_SIZE = 5

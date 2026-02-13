@@ -2,7 +2,7 @@ import fs from "node:fs"
 import { getSvgFromGraphicsObject } from "graphics-debug"
 import { generateViaTopologyRegions } from "lib/ViaGraphSolver/via-graph-generator/generateViaTopologyRegions"
 import { visualizeJumperGraph } from "../lib/JumperGraphSolver/visualizeJumperGraph"
-import viasByNet from "../vias-by-net.json"
+import viasByNet from "assets/ViaGraphSolver/vias-by-net.json"
 
 const topology = generateViaTopologyRegions(viasByNet, {
   graphSize: 5,
