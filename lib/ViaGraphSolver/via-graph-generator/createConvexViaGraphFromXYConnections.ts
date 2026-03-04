@@ -1,16 +1,24 @@
 import defaultViaTile from "assets/ViaGraphSolver/via-tile-4-regions.json"
 import type { XYConnection } from "../../JumperGraphSolver/jumper-graph-generator/createGraphWithConnectionsFromBaseGraph"
-import type { JumperGraph } from "../../JumperGraphSolver/jumper-types"
-import type { Connection } from "../../types"
 import type { ViaTile } from "../ViaGraphSolver"
-import { createViaGraphWithConnections } from "./createViaGraphWithConnections"
-import { generateConvexViaTopologyRegions } from "./generateConvexViaTopologyRegions"
+import {
+  createConvexViaGraphFromWidthHeight,
+  type CreateConvexViaGraphFromWidthHeightOptions,
+} from "./createConvexViaGraphFromWidthHeight"
+import {
+  insertXYConnectionsIntoConvexViaGraph,
+  type ConvexViaGraphFromXYConnectionsResult,
+} from "./insertXYConnectionsIntoConvexViaGraph"
 
-export type ConvexViaGraphFromXYConnectionsResult = JumperGraph & {
-  connections: Connection[]
-  viaTile: ViaTile
-  tileCount: { rows: number; cols: number }
+export {
+  createConvexViaGraphFromWidthHeight,
+  insertXYConnectionsIntoConvexViaGraph,
 }
+export type {
+  ConvexViaGraphResult,
+  CreateConvexViaGraphFromWidthHeightOptions,
+} from "./createConvexViaGraphFromWidthHeight"
+export type { ConvexViaGraphFromXYConnectionsResult } from "./insertXYConnectionsIntoConvexViaGraph"
 
 /**
  * Calculate the bounds from XY connections with no margin.
@@ -61,50 +69,19 @@ function calculateBoundsFromConnections(xyConnections: XYConnection[]): {
 export function createConvexViaGraphFromXYConnections(
   xyConnections: XYConnection[],
   viaTile: ViaTile = defaultViaTile as ViaTile,
-  opts?: {
-    tileWidth?: number
-    tileHeight?: number
-    tileSize?: number
-    portPitch?: number
-    clearance?: number
-    concavityTolerance?: number
-  },
+  opts?: Omit<CreateConvexViaGraphFromWidthHeightOptions, "minX" | "minY">,
 ): ConvexViaGraphFromXYConnectionsResult {
-  // Calculate bounds from connections (no margin)
   const bounds = calculateBoundsFromConnections(xyConnections)
-
-  // Generate the via topology with convex regions
-  // Use tileWidth/tileHeight from opts, or fall back to viaTile's values
-  const {
-    regions,
-    ports,
-    viaTile: generatedViaTile,
-    tileCount,
-  } = generateConvexViaTopologyRegions({
+  const baseGraph = createConvexViaGraphFromWidthHeight(
+    bounds.maxX - bounds.minX,
+    bounds.maxY - bounds.minY,
     viaTile,
-    bounds,
-    tileWidth: opts?.tileWidth ?? viaTile.tileWidth,
-    tileHeight: opts?.tileHeight ?? viaTile.tileHeight,
-    tileSize: opts?.tileSize,
-    portPitch: opts?.portPitch,
-    clearance: opts?.clearance,
-    concavityTolerance: opts?.concavityTolerance,
-  })
-
-  // Create base graph from regions
-  const baseGraph: JumperGraph = { regions, ports }
-
-  // Add connections to the graph
-  // Note: findBoundaryRegionForPolygons auto-detects convex topology by checking
-  // for filler regions and only connects to them (avoiding tiny isolated convex regions)
-  const graphWithConnections = createViaGraphWithConnections(
-    baseGraph,
-    xyConnections,
+    {
+      ...opts,
+      minX: bounds.minX,
+      minY: bounds.minY,
+    },
   )
 
-  return {
-    ...graphWithConnections,
-    viaTile: generatedViaTile,
-    tileCount,
-  }
+  return insertXYConnectionsIntoConvexViaGraph(baseGraph, xyConnections)
 }

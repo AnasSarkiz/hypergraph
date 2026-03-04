@@ -4,6 +4,8 @@ import { getSvgFromGraphicsObject } from "graphics-debug"
 import type { XYConnection } from "lib/JumperGraphSolver/jumper-graph-generator/createGraphWithConnectionsFromBaseGraph"
 import { ViaGraphSolver } from "lib/ViaGraphSolver/ViaGraphSolver"
 import { createConvexViaGraphFromXYConnections } from "lib/ViaGraphSolver/via-graph-generator/createConvexViaGraphFromXYConnections"
+import { createConvexViaGraphFromWidthHeight } from "lib/ViaGraphSolver/via-graph-generator/createConvexViaGraphFromWidthHeight"
+import { insertXYConnectionsIntoConvexViaGraph } from "lib/ViaGraphSolver/via-graph-generator/insertXYConnectionsIntoConvexViaGraph"
 import dataset02 from "../../datasets/jumper-graph-solver/dataset02.json"
 
 interface DatasetSample {
@@ -55,6 +57,69 @@ const extractXYConnections = (sample: DatasetSample): XYConnection[] => {
     }
   })
 }
+
+const calculateBounds = (xyConnections: XYConnection[]) => {
+  return xyConnections.reduce(
+    (bounds, connection) => ({
+      minX: Math.min(bounds.minX, connection.start.x, connection.end.x),
+      maxX: Math.max(bounds.maxX, connection.start.x, connection.end.x),
+      minY: Math.min(bounds.minY, connection.start.y, connection.end.y),
+      maxY: Math.max(bounds.maxY, connection.start.y, connection.end.y),
+    }),
+    {
+      minX: Number.POSITIVE_INFINITY,
+      maxX: Number.NEGATIVE_INFINITY,
+      minY: Number.POSITIVE_INFINITY,
+      maxY: Number.NEGATIVE_INFINITY,
+    },
+  )
+}
+
+test("via-graph-convex-dataset02: split helpers compose back to the existing API", () => {
+  const sample = typedDataset[0]
+  const xyConnections = extractXYConnections(sample)
+  const bounds = calculateBounds(xyConnections)
+
+  const combinedGraph = createConvexViaGraphFromXYConnections(
+    xyConnections,
+    viaTile,
+  )
+  const baseGraph = createConvexViaGraphFromWidthHeight(
+    bounds.maxX - bounds.minX,
+    bounds.maxY - bounds.minY,
+    viaTile,
+    {
+      minX: bounds.minX,
+      minY: bounds.minY,
+    },
+  )
+  const splitGraph = insertXYConnectionsIntoConvexViaGraph(
+    baseGraph,
+    xyConnections,
+  )
+
+  expect(baseGraph).not.toHaveProperty("connections")
+  expect(splitGraph.tileCount).toEqual(combinedGraph.tileCount)
+  expect(splitGraph.regions.map((region) => region.regionId)).toEqual(
+    combinedGraph.regions.map((region) => region.regionId),
+  )
+  expect(splitGraph.ports.map((port) => port.portId)).toEqual(
+    combinedGraph.ports.map((port) => port.portId),
+  )
+  expect(
+    splitGraph.connections.map((connection) => ({
+      connectionId: connection.connectionId,
+      startRegionId: connection.startRegion.regionId,
+      endRegionId: connection.endRegion.regionId,
+    })),
+  ).toEqual(
+    combinedGraph.connections.map((connection) => ({
+      connectionId: connection.connectionId,
+      startRegionId: connection.startRegion.regionId,
+      endRegionId: connection.endRegion.regionId,
+    })),
+  )
+}, 30000)
 
 test("via-graph-convex-dataset02: solve sample 0 with convex regions", () => {
   const sample = typedDataset[0]
