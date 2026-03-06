@@ -6,11 +6,8 @@ import { fileURLToPath } from "node:url"
 import { getSvgFromGraphicsObject } from "graphics-debug"
 import type { JPort, JRegion } from "../lib/JumperGraphSolver/jumper-types"
 import { visualizeJumperGraph } from "../lib/JumperGraphSolver/visualizeJumperGraph"
-import {
-  bakeViaTile,
-  type BakedViaTile,
-} from "../lib/ViaGraphSolver/via-graph-generator/bakeViaTile"
 import type { ViaTile } from "../lib/ViaGraphSolver/ViaGraphSolver"
+import { generateConvexViaTopologyRegions } from "../lib/ViaGraphSolver/via-graph-generator/generateConvexViaTopologyRegions"
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url))
 const ASSETS_DIR = path.join(SCRIPT_DIR, "..", "assets", "ViaGraphSolver")
@@ -30,6 +27,116 @@ const NET_COLOR_PALETTE = [
   "rgba(241, 196, 15, 0.35)",
   "rgba(230, 126, 34, 0.35)",
 ]
+
+type Point = { x: number; y: number }
+type Bounds = { minX: number; maxX: number; minY: number; maxY: number }
+
+type BakedViaTileRegion = {
+  regionId: string
+  polygon: Point[]
+  bounds: Bounds
+  center: Point
+  isViaRegion: boolean
+  netName?: string
+}
+
+type BakedViaTilePort = {
+  portId: string
+  region1Id: string
+  region2Id: string
+  position: Point
+}
+
+type BakedViaTile = ViaTile & {
+  regions: BakedViaTileRegion[]
+  insidePorts: BakedViaTilePort[]
+}
+
+const parseViaNetName = (regionId: string): string | undefined => {
+  const marker = ":v:"
+  const markerIndex = regionId.lastIndexOf(marker)
+  if (markerIndex === -1) return undefined
+  return regionId.slice(markerIndex + marker.length)
+}
+
+const serializeRegion = (region: JRegion): BakedViaTileRegion => ({
+  regionId: region.regionId,
+  polygon: region.d.polygon ?? [],
+  bounds: {
+    minX: region.d.bounds.minX,
+    maxX: region.d.bounds.maxX,
+    minY: region.d.bounds.minY,
+    maxY: region.d.bounds.maxY,
+  },
+  center: { x: region.d.center.x, y: region.d.center.y },
+  isViaRegion: Boolean(region.d.isViaRegion),
+  netName: parseViaNetName(region.regionId),
+})
+
+const serializePort = (port: JPort): BakedViaTilePort => ({
+  portId: port.portId,
+  region1Id: port.region1.regionId,
+  region2Id: port.region2.regionId,
+  position: { x: port.d.x, y: port.d.y },
+})
+
+function bakeViaTile(
+  viaTile: ViaTile,
+  opts?: {
+    tileWidth?: number
+    tileHeight?: number
+    portPitch?: number
+    clearance?: number
+    concavityTolerance?: number
+  },
+): BakedViaTile {
+  const tileWidth = opts?.tileWidth ?? viaTile.tileWidth
+  const tileHeight = opts?.tileHeight ?? viaTile.tileHeight
+
+  if (tileWidth === undefined || tileHeight === undefined) {
+    throw new Error(
+      "Cannot bake via tile without tileWidth and tileHeight (in input or opts).",
+    )
+  }
+
+  const singleTileBounds = {
+    minX: -tileWidth / 2,
+    maxX: tileWidth / 2,
+    minY: -tileHeight / 2,
+    maxY: tileHeight / 2,
+  }
+
+  const singleTile = generateConvexViaTopologyRegions({
+    viaTile,
+    bounds: singleTileBounds,
+    tileWidth,
+    tileHeight,
+    portPitch: opts?.portPitch,
+    clearance: opts?.clearance,
+    concavityTolerance: opts?.concavityTolerance,
+  })
+
+  const insideRegions = singleTile.regions.filter(
+    (region) => !region.regionId.startsWith("filler:"),
+  )
+  const insideRegionIds = new Set(
+    insideRegions.map((region) => region.regionId),
+  )
+  const insidePorts = singleTile.ports.filter(
+    (port) =>
+      insideRegionIds.has(port.region1.regionId) &&
+      insideRegionIds.has(port.region2.regionId),
+  )
+
+  return {
+    ...viaTile,
+    tileWidth,
+    tileHeight,
+    regions: insideRegions.map(serializeRegion),
+    insidePorts: insidePorts.map(serializePort),
+  }
+}
+
 const regionFromBaked = (region: BakedViaTile["regions"][number]): JRegion => ({
   regionId: region.regionId,
   ports: [],
