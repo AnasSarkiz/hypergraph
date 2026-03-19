@@ -43,6 +43,8 @@ export type HyperGraphSectionOptimizer2Input = {
   MAX_ATTEMPTS_PER_REGION?: number
   MAX_ATTEMPTS_PER_SECTION?: number
   ACCEPTABLE_CENTRAL_REGION_COST?: number
+  ACCEPTABLE_CENTRAL_REGION_COST_START?: number
+  ACCEPTABLE_CENTRAL_REGION_COST_END?: number
 }
 
 type NormalizedHyperGraphSectionOptimizer2Input = {
@@ -53,6 +55,8 @@ type NormalizedHyperGraphSectionOptimizer2Input = {
   maxTargetRegionAttempts: number
   maxSectionAttempts: number
   minCentralRegionCost: number
+  centralRegionCostStart?: number
+  centralRegionCostEnd?: number
   effort: number
 }
 
@@ -107,6 +111,8 @@ export class HyperGraphSectionOptimizer2 extends BaseSolver {
       maxTargetRegionAttempts: this.config.maxTargetRegionAttempts,
       maxSectionAttempts: this.config.maxSectionAttempts,
       minCentralRegionCost: this.config.minCentralRegionCost,
+      ACCEPTABLE_CENTRAL_REGION_COST_START: this.config.centralRegionCostStart,
+      ACCEPTABLE_CENTRAL_REGION_COST_END: this.config.centralRegionCostEnd,
       effort: this.config.effort,
     }
   }
@@ -246,6 +252,7 @@ export class HyperGraphSectionOptimizer2 extends BaseSolver {
   private selectTargetRegion(): Region | null {
     let bestRegion: Region | null = null
     let bestCost = Infinity
+    const minCentralRegionCost = this.getMinCentralRegionCost()
 
     for (const region of this.graph.regions) {
       if ((region.assignments?.length ?? 0) === 0) continue
@@ -257,13 +264,34 @@ export class HyperGraphSectionOptimizer2 extends BaseSolver {
       }
 
       const cost = this.getCostOfCentralRegion(region)
-      if (cost <= this.config.minCentralRegionCost) continue
+      if (cost <= minCentralRegionCost) continue
       if (cost >= bestCost) continue
       bestCost = cost
       bestRegion = region
     }
 
     return bestRegion
+  }
+
+  protected getMinCentralRegionCost(): number {
+    const { centralRegionCostStart, centralRegionCostEnd } = this.config
+    if (
+      centralRegionCostStart === undefined ||
+      centralRegionCostEnd === undefined
+    ) {
+      return this.config.minCentralRegionCost
+    }
+
+    return this.interpolateCentralRegionCost(
+      centralRegionCostStart,
+      centralRegionCostEnd,
+    )
+  }
+
+  private interpolateCentralRegionCost(start: number, end: number): number {
+    const attemptsToMax = Math.max(1, this.config.maxSectionAttempts - 1)
+    const progress = Math.min(1, this.attemptedSectionCount / attemptsToMax)
+    return start + (end - start) * progress
   }
 
   private createSectionSolveAttempt(
@@ -446,6 +474,20 @@ const normalizeInput = (
     )
   }
 
+  const acceptableCentralRegionCostStart =
+    input.ACCEPTABLE_CENTRAL_REGION_COST_START
+  const acceptableCentralRegionCostEnd =
+    input.ACCEPTABLE_CENTRAL_REGION_COST_END
+
+  if (
+    (acceptableCentralRegionCostStart === undefined) !==
+    (acceptableCentralRegionCostEnd === undefined)
+  ) {
+    throw new Error(
+      "HyperGraphSectionOptimizer2 requires both ACCEPTABLE_CENTRAL_REGION_COST_START and ACCEPTABLE_CENTRAL_REGION_COST_END",
+    )
+  }
+
   return {
     inputGraph: {
       ...input.inputGraph,
@@ -460,6 +502,8 @@ const normalizeInput = (
       input.maxSectionAttempts ?? input.MAX_ATTEMPTS_PER_SECTION ?? 500,
     minCentralRegionCost:
       input.minCentralRegionCost ?? input.ACCEPTABLE_CENTRAL_REGION_COST ?? 0,
+    centralRegionCostStart: acceptableCentralRegionCostStart,
+    centralRegionCostEnd: acceptableCentralRegionCostEnd,
     effort: input.effort ?? 1,
   }
 }
